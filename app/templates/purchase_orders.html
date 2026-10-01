@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders — Hulchul ERP{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Purchase Orders</h1>
+    <p class="subtitle">Approved purchase orders against which invoices are validated.</p>
+</div>
+<table>
+    <thead>
+        <tr>
+            <th>PO Number</th><th>Vendor</th><th>Amount (₹)</th>
+            <th>Description</th><th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for po in pos %}
+        <tr>
+            <td class="mono">{{ po.po_number }}</td>
+            <td>{{ po.vendor_name }}</td>
+            <td class="amount">{{ "₹{:,.0f}".format(po.amount) }}</td>
+            <td>{{ po.description or '—' }}</td>
+            <td>{{ po.created_at[:10] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

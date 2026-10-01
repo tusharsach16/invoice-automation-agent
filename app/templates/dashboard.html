@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Hulchul ERP{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="stat-grid">
+    <div class="stat-card">
+        <span class="stat-number">{{ source_count }}</span>
+        <span class="stat-label">Source Invoices</span>
+        <a href="/source-invoices" class="stat-link">View inbox →</a>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">{{ erp_count }}</span>
+        <span class="stat-label">ERP Invoices Entered</span>
+        <a href="/erp-invoices" class="stat-link">View ERP →</a>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">{{ po_count }}</span>
+        <span class="stat-label">Purchase Orders</span>
+        <a href="/purchase-orders" class="stat-link">View POs →</a>
+    </div>
+</div>
+
+<h2>Recent Agent Runs</h2>
+{% if recent_runs %}
+<table>
+    <thead>
+        <tr>
+            <th>Run ID</th><th>Goal</th><th>Status</th><th>Started</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for run in recent_runs %}
+        <tr>
+            <td>#{{ run.id }}</td>
+            <td class="goal-cell">{{ run.goal[:80] }}{% if run.goal|length > 80 %}…{% endif %}</td>
+            <td><span class="badge badge-{{ run.status }}">{{ run.status }}</span></td>
+            <td>{{ run.started_at }}</td>
+            <td><a href="/agent-runs/{{ run.id }}">Details →</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No agent runs yet. <a href="/agent-runs">Start one →</a></p>
+{% endif %}
+{% endblock %}

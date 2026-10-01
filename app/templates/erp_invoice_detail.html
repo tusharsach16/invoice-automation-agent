@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if not_found %}Invoice Not Found{% else %}{{ invoice_number }}{% endif %} — Hulchul ERP
+{% endblock %}
+{% block content %}
+{% if not_found %}
+<div class="alert alert-error">
+    <h2>Invoice Not Found</h2>
+    <p>No ERP invoice with number <strong class="mono">{{ invoice_number }}</strong> exists.</p>
+    <a href="/erp-invoices">← Back to ERP Invoices</a>
+</div>
+{% else %}
+<div class="page-header">
+    <h1>ERP Invoice</h1>
+    <a href="/erp-invoices">← Back</a>
+</div>
+<div class="detail-card">
+    <div class="detail-row">
+        <span class="detail-label">Invoice Number</span>
+        <!-- id="erp-invoice-number" is read by Playwright to confirm creation -->
+        <span class="detail-value mono" id="erp-invoice-number">{{ invoice.invoice_number }}</span>
+    </div>
+    <div class="detail-row">
+        <span class="detail-label">Vendor</span>
+        <span class="detail-value">{{ invoice.vendor_name }}</span>
+    </div>
+    <div class="detail-row">
+        <span class="detail-label">PO Number</span>
+        <span class="detail-value mono">{{ invoice.po_number or '—' }}</span>
+    </div>
+    <div class="detail-row">
+        <span class="detail-label">Amount</span>
+        <!-- id="erp-invoice-amount" is read by Playwright to confirm amount -->
+        <span class="detail-value amount" id="erp-invoice-amount">{{ "₹{:,.0f}".format(invoice.amount) }}</span>
+    </div>
+    <div class="detail-row">
+        <span class="detail-label">Entered At</span>
+        <span class="detail-value">{{ invoice.entered_at }}</span>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

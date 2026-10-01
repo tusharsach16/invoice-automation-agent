@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Create Invoice — Hulchul ERP{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Create Invoice</h1>
+    <p class="subtitle">Enter a new invoice into the ERP system.</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<!--
+  This form is the target of Playwright automation.
+  All field IDs must remain stable — portal.py references them directly.
+  Form POSTs to /erp-invoices; the route validates and writes to erp_invoices.
+-->
+<form method="post" action="/erp-invoices" class="invoice-form">
+    <div class="form-group">
+        <label for="vendor_id">Vendor</label>
+        <select id="vendor_id" name="vendor_id" required>
+            <option value="">— Select vendor —</option>
+            {% for v in vendors %}
+            <option value="{{ v.id }}">{{ v.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="invoice_number">Invoice Number</label>
+        <input type="text" id="invoice_number" name="invoice_number"
+               placeholder="e.g. INV-2024-001" required maxlength="50">
+    </div>
+
+    <div class="form-group">
+        <label for="po_number">PO Number <span class="optional">(optional)</span></label>
+        <input type="text" id="po_number" name="po_number"
+               placeholder="e.g. PO-2024-001" maxlength="50">
+    </div>
+
+    <div class="form-group">
+        <label for="amount">Amount (₹)</label>
+        <input type="number" id="amount" name="amount"
+               placeholder="e.g. 75000" step="0.01" min="0.01" required>
+    </div>
+
+    <div class="form-group">
+        <label for="description">Description <span class="optional">(optional)</span></label>
+        <input type="text" id="description" name="description"
+               placeholder="Brief description" maxlength="200">
+    </div>
+
+    <button type="submit" id="submit-invoice" class="btn btn-primary">Submit Invoice</button>
+</form>
+{% endblock %}

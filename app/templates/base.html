@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hulchul ERP{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="brand">Hulchul ERP</a>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/source-invoices">Source Invoices</a>
+            <a href="/erp-invoices">ERP Invoices</a>
+            <a href="/create-invoice">Create Invoice</a>
+            <a href="/purchase-orders">Purchase Orders</a>
+            <a href="/agent-runs">Agent Runs</a>
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
