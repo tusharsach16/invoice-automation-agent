@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Agent Runs — Hulchul ERP{% endblock %}
+{% block content %}
+<h1>Agent Runs</h1>
+<table>
+    <thead>
+        <tr><th>Run ID</th><th>Goal</th><th>Status</th><th>Started</th><th>Finished</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for run in runs %}
+        <tr>
+            <td>#{{ run.id }}</td>
+            <td class="goal-cell">{{ run.goal[:60] }}{% if run.goal|length > 60 %}…{% endif %}</td>
+            <td><span class="badge badge-{{ run.status }}">{{ run.status }}</span></td>
+            <td>{{ run.started_at[:16] }}</td>
+            <td>{{ run.finished_at[:16] if run.finished_at else '—' }}</td>
+            <td><a href="/agent-runs/{{ run.id }}">View →</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if not runs %}
+<p class="empty-state">No agent runs yet.</p>
+{% endif %}
+{% endblock %}
