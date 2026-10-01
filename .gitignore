@@ -1,0 +1,46 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local SQLite databases & SQLite temp files
+*.db
+*.db-journal
+*.sqlite3
+hulchul.db
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Playwright artifacts
+test-results/
+playwright-report/
