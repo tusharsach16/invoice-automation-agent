@@ -13,6 +13,46 @@ ALLOWED_ACTIONS: set[str] = {
 }
 
 
+def validate_action_sequence(actions: list[str]) -> None:
+    """
+    Validate that action sequence contains only allowed actions and follows
+    deterministic ordering and dependency rules.
+    """
+    if not actions:
+        raise ValueError("Plan must contain at least one action")
+
+    unknown = set(actions) - ALLOWED_ACTIONS
+    if unknown:
+        raise ValueError(f"Unknown actions not permitted: {sorted(unknown)}")
+
+    if len(actions) != len(set(actions)):
+        raise ValueError("Duplicate actions in plan are not permitted")
+
+    indices = {action: i for i, action in enumerate(actions)}
+
+    # Rule: check_purchase_orders requires read_invoices before it
+    if "check_purchase_orders" in indices:
+        if "read_invoices" not in indices or indices["read_invoices"] > indices["check_purchase_orders"]:
+            raise ValueError("'read_invoices' must precede 'check_purchase_orders'")
+
+    # Rule: create_invoices requires check_purchase_orders before it
+    if "create_invoices" in indices:
+        if "check_purchase_orders" not in indices or indices["check_purchase_orders"] > indices["create_invoices"]:
+            raise ValueError("'check_purchase_orders' must precede 'create_invoices'")
+
+    # Rule: flag_mismatches requires check_purchase_orders before it
+    if "flag_mismatches" in indices:
+        if "check_purchase_orders" not in indices or indices["check_purchase_orders"] > indices["flag_mismatches"]:
+            raise ValueError("'check_purchase_orders' must precede 'flag_mismatches'")
+
+    # Rule: generate_report must happen after processing
+    if "generate_report" in indices:
+        report_idx = indices["generate_report"]
+        for other_action, other_idx in indices.items():
+            if other_action != "generate_report" and other_idx > report_idx:
+                raise ValueError(f"'generate_report' must occur after processing ('{other_action}')")
+
+
 class AgentGoal(BaseModel):
     goal: str
 
@@ -21,26 +61,23 @@ class FilterConfig(BaseModel):
     min_amount: float | None = None
     max_amount: float | None = None
     vendor_ids: list[int] | None = None
+    invoice_numbers: list[str] | None = None
 
 
 class ExecutionPlan(BaseModel):
     """
     Validated output of the LLM planner.
 
-    The allowlist check here is the security boundary: if the LLM hallucinates
-    a non-existent action, execution is rejected before anything runs.
+    The validation here enforces both the allowlist and deterministic ordering/dependencies:
+    if the LLM generates an invalid, incomplete, or out-of-order plan, it is rejected.
     """
     filters: FilterConfig
     actions: list[str]
 
     @field_validator("actions")
     @classmethod
-    def actions_must_be_allowlisted(cls, v: list[str]) -> list[str]:
-        if not v:
-            raise ValueError("Plan must contain at least one action")
-        unknown = set(v) - ALLOWED_ACTIONS
-        if unknown:
-            raise ValueError(f"Unknown actions not permitted: {sorted(unknown)}")
+    def actions_must_be_valid_sequence(cls, v: list[str]) -> list[str]:
+        validate_action_sequence(v)
         return v
 
 

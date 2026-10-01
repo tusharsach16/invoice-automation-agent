@@ -13,6 +13,7 @@ def get_all(
     min_amount: float | None = None,
     max_amount: float | None = None,
     vendor_ids: list[int] | None = None,
+    invoice_numbers: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     query = """
         SELECT
@@ -34,6 +35,10 @@ def get_all(
         placeholders = ",".join("?" * len(vendor_ids))
         query += f" AND si.vendor_id IN ({placeholders})"
         params.extend(vendor_ids)
+    if invoice_numbers:
+        placeholders = ",".join("?" * len(invoice_numbers))
+        query += f" AND si.invoice_number IN ({placeholders})"
+        params.extend(invoice_numbers)
 
     query += " ORDER BY si.amount DESC"
     rows = conn.execute(query, params).fetchall()

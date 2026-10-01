@@ -32,6 +32,7 @@ def read_invoices(
         min_amount=filters.min_amount,
         max_amount=filters.max_amount,
         vendor_ids=filters.vendor_ids,
+        invoice_numbers=filters.invoice_numbers,
     )
 
     for inv in invoices:
@@ -66,7 +67,7 @@ def check_purchase_orders(
 
     for inv in invoices:
         match = po_service.match(conn, inv)
-        results[inv["id"]] = asdict(match)
+        results[inv["id"]] = match.model_dump()
 
         if match.status != POMatchStatus.MATCH:
             conn.execute(
