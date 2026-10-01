@@ -88,7 +88,7 @@ _DDL = [
         source_invoice_id   INTEGER NOT NULL REFERENCES source_invoices(id),
         approval_status     TEXT    NOT NULL DEFAULT 'not_required'
                             CHECK (approval_status IN (
-                                'not_required', 'pending', 'approved', 'rejected'
+                                'not_required', 'pending', 'approved', 'rejected', 'timed_out'
                             )),
         processing_status   TEXT    NOT NULL DEFAULT 'pending'
                             CHECK (processing_status IN (

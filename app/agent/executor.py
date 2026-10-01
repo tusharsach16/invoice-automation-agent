@@ -39,7 +39,7 @@ def _process_invoice(
     po_results: dict,
     run_state,
     threshold: float,
-) -> None:
+) -> sqlite3.Connection:
     """Process a single invoice through the approval gate and browser submission."""
     inv_id = invoice["source_invoice_id"]
     inv_number = invoice["invoice_number"]
@@ -67,23 +67,30 @@ def _process_invoice(
 
         run_state.pending_approval_invoice_id = inv_id
         run_state.approval_event.clear()
-        # Block until the /approve route sets this event (or timeout after 1 hour).
-        approved = run_state.approval_event.wait(timeout=_APPROVAL_TIMEOUT_S)
+
+        # Close database connection during approval wait to release locks and resources
+        conn.commit()
+        conn.close()
+        try:
+            # Block until the /approve route sets this event (or timeout after 1 hour).
+            approved = run_state.approval_event.wait(timeout=_APPROVAL_TIMEOUT_S)
+        finally:
+            conn = get_connection()
 
         if not approved:
-            # Timeout with no human decision — skip and continue.
+            # Timeout with no human decision — mark timed_out, skip and continue.
             logger.warning(
                 "run=%d invoice=%s approval timed out, skipping", run_id, inv_number
             )
             invoice_tools.update_invoice_state(
-                conn, run_id, inv_id, processing_status="skipped"
+                conn, run_id, inv_id, approval_status="timed_out", processing_status="skipped"
             )
             invoice_tools.log_action(
-                conn, run_id, "approval_decision", "rejected", inv_id,
+                conn, run_id, "approval_decision", "timeout", inv_id,
                 detail="Timed out waiting for approval",
             )
             _set_run_status(conn, run_id, "running")
-            return
+            return conn
 
         # Read the decision that the /approve route wrote to the DB.
         row = conn.execute(
@@ -102,7 +109,7 @@ def _process_invoice(
                 conn, run_id, inv_id, processing_status="skipped"
             )
             logger.info("run=%d invoice=%s rejected by human", run_id, inv_number)
-            return
+            return conn
 
     # ── Browser submission ─────────────────────────────────────────────────
     logger.info("run=%d Submitting invoice %s to ERP", run_id, inv_number)
@@ -116,11 +123,16 @@ def _process_invoice(
         conn, run_id, inv_id, processing_status=browser_result.processing_status,
         error_detail=browser_result.detail,
     )
-    outcome = "success" if browser_result.processing_status in ("verified", "recovered") else "failed"
+    outcome = (
+        "success" if browser_result.processing_status == "verified"
+        else "recovered" if browser_result.processing_status == "recovered"
+        else "failed"
+    )
     invoice_tools.log_action(
         conn, run_id, "submit_to_erp", outcome, inv_id,
         detail=browser_result.detail or browser_result.processing_status,
     )
+    return conn
 
 
 def run(run_id: int, goal: str, plan: ExecutionPlan) -> None:
@@ -130,6 +142,9 @@ def run(run_id: int, goal: str, plan: ExecutionPlan) -> None:
     The plan has already been validated by the planner; execution is fully
     deterministic from this point forward.
     """
+    from app.schemas.agent import validate_action_sequence
+    validate_action_sequence(plan.actions)
+
     conn = get_connection()
     run_state = run_state_module.register(run_id)
 
@@ -152,7 +167,7 @@ def run(run_id: int, goal: str, plan: ExecutionPlan) -> None:
             elif action == "create_invoices":
                 pending = invoice_tools.get_pending_invoices(conn, run_id)
                 for invoice in pending:
-                    _process_invoice(
+                    conn = _process_invoice(
                         conn, run_id, invoice, po_results, run_state,
                         threshold=settings.approval_threshold,
                     )
@@ -175,13 +190,18 @@ def run(run_id: int, goal: str, plan: ExecutionPlan) -> None:
 
     except Exception as exc:
         logger.exception("run=%d Executor failed: %s", run_id, exc)
-        conn.execute(
-            """UPDATE agent_runs
-               SET status='failed', report_json=?, finished_at=datetime('now')
-               WHERE id=?""",
-            (json.dumps({"error": str(exc)}), run_id),
-        )
-        conn.commit()
+        if conn:
+            conn.execute(
+                """UPDATE agent_runs
+                   SET status='failed', report_json=?, finished_at=datetime('now')
+                   WHERE id=?""",
+                (json.dumps({"error": str(exc)}), run_id),
+            )
+            conn.commit()
     finally:
         run_state_module.deregister(run_id)
-        conn.close()
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass

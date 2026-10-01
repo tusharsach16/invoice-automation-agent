@@ -31,12 +31,35 @@ def create_invoice_in_portal(source_invoice: dict) -> BrowserToolResult:
 
     States returned:
       'verified'  — submitted and confirmed on the resulting page.
-      'recovered' — timed out, but ERP check found the record (no retry needed).
-      'failed'    — could not be created after recovery attempt.
+      'recovered' — already exists or timed out, but ERP check confirmed the record (no retry needed).
+      'failed'    — could not be created or verified after recovery attempt.
     """
     inv_number = source_invoice["invoice_number"]
-    logger.info("Submitting invoice %s to ERP portal", inv_number)
 
+    # ── Idempotency pre-check: verify invoice is not already present in ERP ──
+    pre_check = portal.check_invoice_exists(inv_number)
+    if pre_check.found:
+        logger.info(
+            "Invoice %s already exists in ERP (amount=%.0f), skipping duplicate creation",
+            inv_number, pre_check.amount or 0,
+        )
+        return BrowserToolResult(
+            processing_status="recovered",
+            invoice_number=inv_number,
+            detail="Invoice already exists in ERP; skipped duplicate submission",
+        )
+    if pre_check.check_failed:
+        logger.error(
+            "Could not verify existence of invoice %s before submission: %s",
+            inv_number, pre_check.error,
+        )
+        return BrowserToolResult(
+            processing_status="failed",
+            invoice_number=inv_number,
+            detail=f"ERP existence check failed before submission: {pre_check.error}",
+        )
+
+    logger.info("Submitting invoice %s to ERP portal", inv_number)
     result = portal.submit_invoice_form(source_invoice)
 
     if result.success:
@@ -55,8 +78,7 @@ def create_invoice_in_portal(source_invoice: dict) -> BrowserToolResult:
             detail=result.error,
         )
 
-    # Timeout path: the form may have submitted before the connection dropped.
-    # Check the ERP before deciding whether to retry.
+    # ── Timeout path: the form may have submitted before the connection dropped ──
     logger.warning(
         "Timeout submitting %s — checking ERP before retry", inv_number
     )
@@ -75,8 +97,20 @@ def create_invoice_in_portal(source_invoice: dict) -> BrowserToolResult:
             detail="Timeout on submission; invoice found in ERP on recovery check",
         )
 
-    # Not found — safe to retry once.
-    logger.info("Invoice %s not in ERP after timeout, retrying once", inv_number)
+    if existence.check_failed:
+        # Unknown state: do NOT blindly retry when existence check failed
+        logger.error(
+            "Post-timeout check failed for invoice %s: %s. Aborting retry to prevent duplicates.",
+            inv_number, existence.error,
+        )
+        return BrowserToolResult(
+            processing_status="failed",
+            invoice_number=inv_number,
+            detail=f"Timeout on submission and existence check failed ({existence.error}); retry aborted to prevent duplicates",
+        )
+
+    # Confirmed not found — safe to retry once.
+    logger.info("Invoice %s confirmed not in ERP after timeout, retrying once", inv_number)
     retry = portal.submit_invoice_form(source_invoice)
 
     if retry.success:

@@ -46,7 +46,7 @@ def verify(conn: sqlite3.Connection, run_id: int) -> VerificationReport:
     """
     states = conn.execute(
         """
-        SELECT irs.source_invoice_id, irs.processing_status,
+        SELECT irs.source_invoice_id, irs.processing_status, irs.approval_status,
                si.invoice_number, si.amount AS source_amount, si.vendor_id AS source_vendor
         FROM invoice_run_state irs
         JOIN source_invoices si ON si.id = irs.source_invoice_id
@@ -63,6 +63,7 @@ def verify(conn: sqlite3.Connection, run_id: int) -> VerificationReport:
         inv_number = state["invoice_number"]
         source_amount = state["source_amount"]
         proc_status = state["processing_status"]
+        appr_status = state["approval_status"]
 
         erp_row = conn.execute(
             "SELECT amount, vendor_id FROM erp_invoices WHERE invoice_number = ?",
@@ -71,6 +72,11 @@ def verify(conn: sqlite3.Connection, run_id: int) -> VerificationReport:
 
         if proc_status == "skipped":
             skipped += 1
+            note = (
+                "Skipped (timed out)" if appr_status == "timed_out"
+                else "Skipped (rejected)" if appr_status == "rejected"
+                else "Skipped"
+            )
             checks.append(InvoiceCheckResult(
                 invoice_number=inv_number,
                 source_amount=source_amount,
@@ -79,7 +85,7 @@ def verify(conn: sqlite3.Connection, run_id: int) -> VerificationReport:
                 amount_match=True,
                 found_in_erp=False,
                 processing_status=proc_status,
-                note="Skipped (filtered or rejected)",
+                note=note,
             ))
             continue
 
