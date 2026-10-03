@@ -1,9 +1,11 @@
 {% extends "base.html" %}
-{% block title %}ERP Invoices — Hulchul ERP{% endblock %}
+{% block title %}ERP Invoices — AI Invoice Agent{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h1>ERP Invoices</h1>
-    <p class="subtitle">Invoices entered into the system via browser automation or manually.</p>
+    <div>
+        <h1>ERP Invoices</h1>
+        <p class="subtitle">Invoices entered into the ERP system via browser automation or manual creation.</p>
+    </div>
     <a href="/create-invoice" class="btn">+ New Invoice</a>
 </div>
 
@@ -18,12 +20,12 @@
         {% for inv in invoices %}
         <tr>
             <td class="mono">
-                <a href="/erp-invoices/{{ inv.invoice_number }}">{{ inv.invoice_number }}</a>
+                <a href="/erp-invoices/{{ inv.invoice_number }}" style="font-weight: 600;">{{ inv.invoice_number }}</a>
             </td>
             <td>{{ inv.vendor_name }}</td>
             <td class="mono">{{ inv.po_number or '—' }}</td>
-            <td class="amount">{{ "₹{:,.0f}".format(inv.amount) }}</td>
-            <td>{{ inv.entered_at }}</td>
+            <td class="amount">₹{{ "{:,.0f}".format(inv.amount) }}</td>
+            <td><span class="utc-time" style="color: var(--text-muted); font-size: 0.825rem;">{{ inv.entered_at }}</span></td>
         </tr>
         {% endfor %}
     </tbody>
@@ -31,4 +33,19 @@
 {% if not invoices %}
 <p class="empty-state">No ERP invoices yet. Run the agent or create one manually.</p>
 {% endif %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".utc-time").forEach(function(el) {
+        const text = el.textContent.trim();
+        if (text && text !== "—") {
+            const iso = text.includes("T") ? text : (text.replace(" ", "T") + "Z");
+            const d = new Date(iso);
+            if (!isNaN(d.getTime())) {
+                el.textContent = d.toLocaleString();
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

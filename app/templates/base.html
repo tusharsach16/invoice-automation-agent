@@ -3,23 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Hulchul ERP{% endblock %}</title>
+    <title>{% block title %}AI Invoice Agent — Hulchul ERP{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <a href="/" class="brand">Hulchul ERP</a>
-        <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/source-invoices">Source Invoices</a>
-            <a href="/erp-invoices">ERP Invoices</a>
-            <a href="/create-invoice">Create Invoice</a>
-            <a href="/purchase-orders">Purchase Orders</a>
-            <a href="/agent-runs">Agent Runs</a>
+    <header class="navbar-wrapper">
+        <div class="navbar container">
+            <a href="/" class="brand">
+                <span class="brand-icon">⚡</span>
+                <div class="brand-text">
+                    <span class="brand-title">AI Invoice Agent</span>
+                    <span class="brand-subtitle">Autonomous ERP Operations</span>
+                </div>
+            </a>
+            <nav class="nav-links">
+                <a href="/" class="nav-item" data-path="/">Dashboard</a>
+                <a href="/source-invoices" class="nav-item" data-path="/source-invoices">Source Invoices</a>
+                <a href="/erp-invoices" class="nav-item" data-path="/erp-invoices">ERP Invoices</a>
+                <a href="/create-invoice" class="nav-item" data-path="/create-invoice">Create Invoice</a>
+                <a href="/purchase-orders" class="nav-item" data-path="/purchase-orders">Purchase Orders</a>
+                <a href="/agent-runs" class="nav-item" data-path="/agent-runs">Agent Runs</a>
+            </nav>
         </div>
-    </nav>
-    <main class="container">
+    </header>
+    <main class="container main-content">
         {% block content %}{% endblock %}
     </main>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const path = window.location.pathname;
+        document.querySelectorAll(".nav-item").forEach(function(link) {
+            const linkPath = link.getAttribute("data-path");
+            if (linkPath === "/" && path === "/") {
+                link.classList.add("active");
+            } else if (linkPath !== "/" && path.startsWith(linkPath)) {
+                link.classList.add("active");
+            }
+        });
+    });
+    </script>
 </body>
 </html>

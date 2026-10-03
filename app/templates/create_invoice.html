@@ -1,9 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Create Invoice — Hulchul ERP{% endblock %}
+{% block title %}Create Invoice — AI Invoice Agent{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h1>Create Invoice</h1>
-    <p class="subtitle">Enter a new invoice into the ERP system.</p>
+    <div>
+        <a href="/erp-invoices" style="font-size: 0.825rem; color: var(--text-muted); font-weight: 500; display: inline-block; margin-bottom: 0.25rem;">← Back to ERP Invoices</a>
+        <h1>Create Manual Invoice</h1>
+        <p class="subtitle">Directly enter a new invoice record into the ERP system.</p>
+    </div>
 </div>
 
 {% if error %}
