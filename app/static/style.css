@@ -470,7 +470,7 @@ tr:hover td {
 }
 
 .amount {
-    text-align: right;
+    text-align: left;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
 }
