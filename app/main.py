@@ -27,10 +27,10 @@ app = FastAPI(title="Hulchul ERP", version="1.0.0")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(pages.router)   # HTML pages first
+app.include_router(agent.router)
 app.include_router(invoices.router)
 app.include_router(purchase_orders.router)
-app.include_router(agent.router)
-app.include_router(pages.router)   # HTML pages last (catch-all friendly)
 
 
 @app.on_event("startup")

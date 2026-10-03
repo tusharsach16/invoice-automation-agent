@@ -1,25 +1,188 @@
 {% extends "base.html" %}
-{% block title %}Agent Runs — Hulchul ERP{% endblock %}
+{% block title %}Agent Runs — AI Invoice Agent{% endblock %}
 {% block content %}
-<h1>Agent Runs</h1>
-<table>
+<div class="page-header">
+    <div>
+        <h1>Agent Runs</h1>
+        <p class="subtitle">Launch new autonomous processing tasks and review historical audit logs.</p>
+    </div>
+</div>
+
+<div class="run-agent-panel">
+    <h2>Run AI Agent</h2>
+    <p class="subtitle" style="margin-bottom: 1rem;">Describe what you want the agent to process.</p>
+    
+    <form id="run-agent-form">
+        <div class="form-group">
+            <textarea id="agent-goal" name="goal" rows="3" placeholder="e.g. Process invoice INV-2024-020. or Process all invoices above 100000."></textarea>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.25rem;">
+            <span style="font-size: 0.775rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Quick Goals:</span>
+            <button type="button" class="btn quick-goal-btn" data-goal="Process invoice INV-2024-001." style="font-size: 0.775rem; padding: 0.25rem 0.6rem;">INV-2024-001 (Auto)</button>
+            <button type="button" class="btn quick-goal-btn" data-goal="Process invoice INV-2024-020." style="font-size: 0.775rem; padding: 0.25rem 0.6rem;">INV-2024-020 (Approval)</button>
+            <button type="button" class="btn quick-goal-btn" data-goal="Process all invoices above 100000." style="font-size: 0.775rem; padding: 0.25rem 0.6rem;">All > ₹1,00,000</button>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button type="submit" id="run-agent-btn" class="btn btn-primary">⚡ Run Agent</button>
+        </div>
+        <div id="run-agent-message" style="margin-top: 1.25rem; display: none;"></div>
+    </form>
+</div>
+
+<h2>All Agent Runs</h2>
+<table id="agent-runs-table" {% if not runs %}style="display: none;"{% endif %}>
     <thead>
         <tr><th>Run ID</th><th>Goal</th><th>Status</th><th>Started</th><th>Finished</th><th></th></tr>
     </thead>
-    <tbody>
+    <tbody id="agent-runs-tbody">
         {% for run in runs %}
         <tr>
-            <td>#{{ run.id }}</td>
-            <td class="goal-cell">{{ run.goal[:60] }}{% if run.goal|length > 60 %}…{% endif %}</td>
+            <td><strong class="mono">#{{ run.id }}</strong></td>
+            <td class="goal-cell">{{ run.goal[:70] }}{% if run.goal|length > 70 %}…{% endif %}</td>
             <td><span class="badge badge-{{ run.status }}">{{ run.status }}</span></td>
-            <td>{{ run.started_at[:16] }}</td>
-            <td>{{ run.finished_at[:16] if run.finished_at else '—' }}</td>
-            <td><a href="/agent-runs/{{ run.id }}">View →</a></td>
+            <td><span class="utc-time">{{ run.started_at }}</span></td>
+            <td><span class="utc-time">{{ run.finished_at if run.finished_at else '—' }}</span></td>
+            <td><a href="/agent-runs/{{ run.id }}" style="font-weight: 500;">View →</a></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-{% if not runs %}
-<p class="empty-state">No agent runs yet.</p>
-{% endif %}
+<p id="empty-runs-msg" class="empty-state" {% if runs %}style="display: none;"{% endif %}>No agent runs yet.</p>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("run-agent-form");
+    if (!form) return;
+
+    const goalInput = document.getElementById("agent-goal");
+    const submitBtn = document.getElementById("run-agent-btn");
+    const messageContainer = document.getElementById("run-agent-message");
+    const runsTable = document.getElementById("agent-runs-table");
+    const runsTbody = document.getElementById("agent-runs-tbody");
+    const emptyMsg = document.getElementById("empty-runs-msg");
+
+    // Quick goal buttons helper
+    document.querySelectorAll(".quick-goal-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            goalInput.value = btn.getAttribute("data-goal");
+            goalInput.focus();
+        });
+    });
+
+    form.addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const goal = (goalInput.value || "").trim();
+        if (!goal) {
+            messageContainer.style.display = "block";
+            messageContainer.className = "alert alert-warning";
+            messageContainer.innerHTML = "<strong>Input Required:</strong> Please enter a goal for the agent.";
+            goalInput.focus();
+            return;
+        }
+
+        // Submitting state
+        submitBtn.disabled = true;
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.textContent = "Running Agent...";
+        messageContainer.style.display = "none";
+        messageContainer.className = "";
+        messageContainer.innerHTML = "";
+
+        try {
+            const response = await fetch("/agent/run", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ goal: goal })
+            });
+
+            const data = await response.json().catch(function() { return {}; });
+
+            if (response.ok && (response.status === 200 || response.status === 202)) {
+                messageContainer.style.display = "block";
+                messageContainer.className = "alert alert-success";
+                messageContainer.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                        <div>
+                            <strong>Agent Run #${data.run_id} started!</strong> Status: <span class="badge badge-running">${data.status || 'running'}</span>
+                        </div>
+                        <a href="/agent-runs/${data.run_id}" id="view-run-link" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">View Run Details →</a>
+                    </div>
+                `;
+
+                // Update table with new run row
+                if (runsTbody) {
+                    if (emptyMsg) emptyMsg.style.display = "none";
+                    if (runsTable) runsTable.style.display = "table";
+
+                    const newRow = document.createElement("tr");
+                    const now = new Date().toLocaleString();
+                    const displayGoal = goal.length > 70 ? goal.substring(0, 70) + "…" : goal;
+                    newRow.innerHTML = `
+                        <td><strong class="mono">#${data.run_id}</strong></td>
+                        <td class="goal-cell">${escapeHtml(displayGoal)}</td>
+                        <td><span class="badge badge-${data.status || 'running'}">${data.status || 'running'}</span></td>
+                        <td>${now}</td>
+                        <td>—</td>
+                        <td><a href="/agent-runs/${data.run_id}" style="font-weight: 500;">View →</a></td>
+                    `;
+                    runsTbody.insertBefore(newRow, runsTbody.firstChild);
+                }
+
+                goalInput.value = "";
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            } else {
+                let errorMsg = "Failed to start agent run.";
+                if (data && data.detail) {
+                    if (typeof data.detail === "string") {
+                        errorMsg = data.detail;
+                    } else if (Array.isArray(data.detail)) {
+                        errorMsg = data.detail.map(function(d) { return d.msg || JSON.stringify(d); }).join(", ");
+                    } else if (typeof data.detail === "object") {
+                        errorMsg = JSON.stringify(data.detail);
+                    }
+                }
+                messageContainer.style.display = "block";
+                messageContainer.className = "alert alert-error";
+                messageContainer.innerHTML = `<strong>Error:</strong> ${escapeHtml(errorMsg)}`;
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            }
+        } catch (err) {
+            messageContainer.style.display = "block";
+            messageContainer.className = "alert alert-error";
+            messageContainer.innerHTML = `<strong>Network Error:</strong> ${escapeHtml(err.message || "Could not connect to server.")}`;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+        }
+    });
+
+    function formatUtcTimes() {
+        document.querySelectorAll(".utc-time").forEach(function(el) {
+            const text = el.textContent.trim();
+            if (text && text !== "—") {
+                const iso = text.includes("T") ? text : (text.replace(" ", "T") + "Z");
+                const d = new Date(iso);
+                if (!isNaN(d.getTime())) {
+                    el.textContent = d.toLocaleString();
+                }
+            }
+        });
+    }
+
+    formatUtcTimes();
+
+    function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+    }
+});
+</script>
 {% endblock %}
